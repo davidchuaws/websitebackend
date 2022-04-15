@@ -32,3 +32,58 @@ boot(app, __dirname, function(err) {
   if (require.main === module)
     app.start();
 });
+
+app.models.user.find((err, result) => {
+  if (result.length === 0) {
+    const user = {
+      email: 'david@dav.com',
+      password: 'testertester',
+      username: 'david',
+    };
+
+    app.models.user.create(user, (err, result) => {
+      console.log("Tried to create user", err, result);
+    });
+  }
+});
+
+app.models.user.afterRemote('create', (ctx, user, next) => {
+  console.log("New user is ", user);
+  app.models.Profile.create({
+    first_name: user.username,
+    created_at: new Date(),
+    userId: user.id
+  }, (err, result) => {
+    if (!err && result) {
+      console.log("Created new profile!", result);
+    } else {
+      console.log("There is an error!", err);
+    }
+    next();
+  });
+});
+
+app.models.Role.find({where: {name: 'admin'}}, (err, role) => {
+  if (!err && role) {
+    console.log('No error, role is', role);
+    if (role.length === 0) {
+      app.models.Role.create({
+        name: 'admin',
+      }, (err2, result) => {
+        if (!err2 && result) {
+          app.models.user.findOne((usererr, user) => {
+            if (!usererr && user) {
+              result.principals.create({
+                principalType: app.models.RoleMapping.USER,
+                principalId: user.id,
+              }, (err3, principal) => {
+                console.log('Created principal', err3, principal);
+              });
+            }
+          });
+          
+        }
+      });
+    }
+  }
+});
